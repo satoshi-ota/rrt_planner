@@ -3,18 +3,23 @@
 
 #include <ros/ros.h>
 
+#include "rrt_planner/rrt_planner.h"
+
 namespace rrt_planner
 {
 
 class PathPlanningNode
 {
 public:
-PathPlanningNode();
-~PathPlanningNode();
+    PathPlanningNode(const ros::NodeHandle& nh, const ros::NodeHandle& private_nh);
+    ~PathPlanningNode();
+
+    void run();
 
 private:
-
-RRTPlanner rrt_planner_;
+    ros::NodeHandle nh_;
+    ros::NodeHandle private_nh_;
+    RRTPlanner rrt_planner_;
 
 };
 

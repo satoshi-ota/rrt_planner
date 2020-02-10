@@ -18,6 +18,8 @@ include_directories(
     ${catkin_INCLUDE_DIRS}
 )
 
+include_directories("/usr/include/eigen3")
+
 add_library(rrt_planner
     src/library/rrt_planner.cpp)
 
@@ -25,5 +27,5 @@ target_link_libraries(rrt_planner ${catkin_LIBRARIES})
 add_dependencies(rrt_planner ${catkin_EXPORTED_TARGETS})
 
 add_executable(path_planning_node src/nodes/path_planning_node.cpp)
-add_dependencies(path_planning_node rrt_planner ${catkin_LIBRARIES})
+add_dependencies(path_planning_node rrt_planner ${catkin_EXPORTED_TARGETS})
 target_link_libraries(path_planning_node rrt_planner ${catkin_LIBRARIES})

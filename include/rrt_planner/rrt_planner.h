@@ -16,17 +16,29 @@ const double goal_x = 1.0;
 const double goal_y = 2.0;
 const double goal_z = 3.0;
 
+Struct Node
+{
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Eigen::Vector3d pos;
+
+    int parent_node;
+};
+
 class RRTPlanner
 {
 public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     RRTPlanner();
     ~RRTPlanner();
 
     void run();
 
+    void setStart(double s_x, double s_y, double s_z);
+    void setGoal(double g_x, double g_y, double g_z);
+
     void search();
-    void path_make();
-    void check_goal();
+    void pathMake();
+    void checkGoal(Eigen::Vector3d& node);
 
 private:
     Eigen::Vector3d start_;
@@ -44,14 +56,14 @@ private:
     bool goal_flag_{false};
 
     std::random_device seed_gen;
-    std::mt19937 engine(seed_gen());
+    // std::mt19937 engine(seed_gen());
 
     // 一様実数分布
     // [-1.0, 1.0)の値の範囲で、等確率に実数を生成する
-    std::uniform_real_distribution<> dist1(-1.0, 1.0);
-    std::uniform_real_distribution<> dist_x(-10.0, 10.0);
-    std::uniform_real_distribution<> dist_y(-10.0, 10.0);
-    std::uniform_real_distribution<> dist_z(-10.0, 10.0);
+    // std::uniform_real_distribution<> dist1(-1.0, 1.0);
+    // std::uniform_real_distribution<> dist_x(-10.0, 10.0);
+    // std::uniform_real_distribution<> dist_y(-10.0, 10.0);
+    // std::uniform_real_distribution<> dist_z(-10.0, 10.0);
 };
 
 } //namespace rrt_planner
