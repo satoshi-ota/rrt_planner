@@ -4,12 +4,16 @@ add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  nav_msgs
+  geometry_msgs
+  visualization_msgs
+  interactive_markers
 )
 
 catkin_package(
     INCLUDE_DIRS include
     LIBRARIES rrt_planner
-    CATKIN_DEPENDS roscpp
+    CATKIN_DEPENDS roscpp nav_msgs geometry_msgs visualization_msgs interactive_markers
     DEPENDS
 )
 

@@ -1,0 +1,16 @@
+<launch>
+    <!-- <arg name="mav_name" default="pelican"/>
+    <arg name="world_name" default="basic"/> -->
+
+    <node name="path_planning_node" pkg="rrt_planner" type="path_planning_node">
+        <!-- <rosparam command="load" file="$(find pyramid_control)/params/sliding_mode_controller.yaml" />
+        <rosparam command="load" file="$(find pyramid_control)/params/pyramid_$(arg mav_name).yaml" />
+        <rosparam command="load" file="$(find pyramid_control)/params/tether_config.yaml" />
+        <remap from="feedback/odometry" to="odometry_sensor1/odometry"/> -->
+    </node>
+
+
+    <node name="rviz" pkg="rviz" type="rviz"/>
+
+    <!-- <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" /> -->
+</launch>
