@@ -5,8 +5,6 @@ namespace rrt_planner
 
 RRTPlanner::RRTPlanner()
 {
-    start_.resize(4, 1);
-    start_ << start_x, start_y, start_z, start_w;
     goal_.resize(4, 1);
     goal_ << goal_x, goal_y, goal_z, goal_w;
 
@@ -24,6 +22,7 @@ RRTPlanner::~RRTPlanner(){}
 
 void RRTPlanner::initTree(Eigen::VectorXd& start)
 {
+    init_flag_ = true;
     goal_flag_ = false;
 
     Node node(start, START);
@@ -34,6 +33,11 @@ void RRTPlanner::initTree(Eigen::VectorXd& start)
 void RRTPlanner::initObstacles()
 {
     obstacles_.clear();
+}
+
+void RRTPlanner::initPath()
+{
+    path_.clear();
 }
 
 void RRTPlanner::addObstacles(Eigen::Vector3d& pos, Eigen::Vector3d& size)
@@ -56,6 +60,14 @@ void RRTPlanner::setParams(double delta, double goal_tolerance)
 {
     delta_ = delta;
     goal_th_ = goal_tolerance;
+}
+
+void RRTPlanner::reconfig(rrt_planner::RRTParametersConfig &config)
+{
+    delta_ = config.dt_ref;
+    goal_th_ = config.goal_tolerance;
+    obstacle_margin_ = config.obstacle_margin;
+    max_itr = config.max_itr;
 }
 
 void RRTPlanner::setStart(double s_x, double s_y, double s_z)
@@ -135,6 +147,9 @@ bool RRTPlanner::checkGoal(Node& node)
 
 bool RRTPlanner::checkConstrain(Node& node)
 {
+    if((-5.0 > node.c_pos(0)) || (5.0 < node.c_pos(0))) return false;
+    if((-5.0 > node.c_pos(1)) || (5.0 < node.c_pos(1))) return false;
+    if((0 > node.c_pos(2)) || (5.0 < node.c_pos(2))) return false;
     if((0 > node.c_pos(3)) || (1.0 < node.c_pos(3))) return false;
 
     return true;
@@ -142,7 +157,7 @@ bool RRTPlanner::checkConstrain(Node& node)
 
 void RRTPlanner::pathMake()
 {
-    path_.clear();
+    initPath();
 
     Node end = nodes_[nodes_.size()-1];
     path_.push_back(end);
@@ -194,7 +209,7 @@ void RRTPlanner::copyToMsg(nav_msgs::Path& path_msg)
 
 void RRTPlanner::showArrow(visualization_msgs::MarkerArray& marker_array)
 {
-    marker_array.markers.resize(path_.size());
+    // marker_array.markers.resize(path_.size());
     for(int i = 0; i <path_.size(); i++)
     {
         geometry_msgs::Point linear_start;
@@ -210,49 +225,75 @@ void RRTPlanner::showArrow(visualization_msgs::MarkerArray& marker_array)
         arrow.y = 0.04;
         arrow.z = 0.01;
 
-        marker_array.markers[i].header.frame_id = "/map";
-        marker_array.markers[i].header.stamp = ros::Time::now();
-        marker_array.markers[i].ns = "";
-        marker_array.markers[i].id = i;
-        marker_array.markers[i].lifetime = ros::Duration();
+        visualization_msgs::Marker marker;
 
-        marker_array.markers[i].type = visualization_msgs::Marker::ARROW;
-        marker_array.markers[i].action = visualization_msgs::Marker::ADD;
-        marker_array.markers[i].scale=arrow;
+        marker.header.frame_id = "/map";
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "";
+        marker.id = i;
+        marker.lifetime = ros::Duration(1.0);
 
-        marker_array.markers[i].points.resize(2);
-        marker_array.markers[i].points[0]=linear_start;
-        marker_array.markers[i].points[1]=linear_end;
+        marker.type = visualization_msgs::Marker::ARROW;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.scale=arrow;
 
-        marker_array.markers[i].color.r = 0.7f;
-        marker_array.markers[i].color.g = 0.5f;
-        marker_array.markers[i].color.b = 0.7f;
-        marker_array.markers[i].color.a = 0.5f;
+        marker.points.resize(2);
+        marker.points[0]=linear_start;
+        marker.points[1]=linear_end;
+
+        marker.color.r = 0.7f;
+        marker.color.g = 0.5f;
+        marker.color.b = 0.7f;
+        marker.color.a = 0.5f;
+
+        // marker_array.markers[i].header.frame_id = "/map";
+        // marker_array.markers[i].header.stamp = ros::Time::now();
+        // marker_array.markers[i].ns = "";
+        // marker_array.markers[i].id = i;
+        // marker_array.markers[i].lifetime = ros::Duration();
+        //
+        // marker_array.markers[i].type = visualization_msgs::Marker::ARROW;
+        // marker_array.markers[i].action = visualization_msgs::Marker::ADD;
+        // marker_array.markers[i].scale=arrow;
+        //
+        // marker_array.markers[i].points.resize(2);
+        // marker_array.markers[i].points[0]=linear_start;
+        // marker_array.markers[i].points[1]=linear_end;
+        //
+        // marker_array.markers[i].color.r = 0.7f;
+        // marker_array.markers[i].color.g = 0.5f;
+        // marker_array.markers[i].color.b = 0.7f;
+        // marker_array.markers[i].color.a = 0.5f;
+
+        marker_array.markers.push_back(marker);
     }
 }
 
 void RRTPlanner::run()
 {
-    initTree(start_);
-
-    int count = 0;
-    while(1)
+    if(init_flag_)
     {
-        if(search()){
-            ROS_INFO("Path planner find path. Itr:%d", count);
-            break;
-        }
-
-        count++;
-
-        if(max_itr < count)
+        int count = 0;
+        while(1)
         {
-            ROS_WARN("Reached max iteration. ");
-            break;
-        }
-    }
+            if(search()){
+                ROS_INFO("Path planner find path. Itr:%d", count);
+                pathMake();
+                break;
+            }
 
-    pathMake();
+            count++;
+
+            if(max_itr < count)
+            {
+                ROS_WARN("Reached max iteration. Itr:%d", count);
+                initPath();
+                break;
+            }
+        }
+
+        init_flag_ = false;
+    }
 }
 
 } //namespace rrt_planner

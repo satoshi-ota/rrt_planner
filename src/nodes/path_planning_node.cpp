@@ -12,7 +12,14 @@ PathPlanningNode::PathPlanningNode
     marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("marker_array", 1);
     server_ = new interactive_markers::InteractiveMarkerServer("simple_marker");
 
+    srv_ = boost::make_shared
+            <dynamic_reconfigure::Server<rrt_planner::RRTParametersConfig>>(private_nh);
+    dynamic_reconfigure::Server<rrt_planner::RRTParametersConfig>::CallbackType cb
+        = boost::bind(&PathPlanningNode::paramsReconfig, this, _1, _2);
+    srv_->setCallback(cb);
+
     setInteractiveMarkers();
+    setStart();
 }
 
 PathPlanningNode::~PathPlanningNode(){}
@@ -86,6 +93,24 @@ void PathPlanningNode::setInteractiveMarkers()
     server_->applyChanges();
 }
 
+void PathPlanningNode::paramsReconfig(rrt_planner::RRTParametersConfig &config, uint32_t level)
+{
+    rrt_planner_.reconfig(config);
+}
+
+void PathPlanningNode::setStart()
+{
+    Eigen::VectorXd start;
+    start.resize(4, 1);
+    start << -2.0, 0.0, 0.0, 0.0;
+    rrt_planner_.initTree(start);
+}
+
+void PathPlanningNode::setGoal()
+{
+
+}
+
 void PathPlanningNode::run()
 {
     rrt_planner_.run();
@@ -98,6 +123,7 @@ void PathPlanningNode::run()
     path_pub_.publish(path_msg);
 
     visualization_msgs::MarkerArray marker_array;
+    marker_array.markers.clear();
     rrt_planner_.showArrow(marker_array);
     marker_pub_.publish(marker_array);
 }
@@ -115,7 +141,7 @@ void PathPlanningNode::processFeedback
 
     rrt_planner_.updateObstacles(pos, index);
 
-    run();
+    setStart();
 }
 
 } //namespace rrt_planner
@@ -126,11 +152,13 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     ros::NodeHandle private_nh("~");
     rrt_planner::PathPlanningNode path_planning_node(nh, private_nh);
-    ros::Duration(2.0).sleep();
 
-    path_planning_node.run();
-
-    ros::spin();
+    while(ros::ok())
+    {
+        path_planning_node.run();
+        ros::Duration(1.0).sleep();
+        ros::spinOnce();
+    }
 
     return 0;
 }

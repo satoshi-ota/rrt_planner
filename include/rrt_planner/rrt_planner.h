@@ -10,13 +10,10 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include "rrt_planner/RRTParametersConfig.h"
+
 namespace rrt_planner
 {
-
-const double start_x = -2.0;
-const double start_y = 0.0;
-const double start_z = 0.0;
-const double start_w = 0.0;
 
 const double goal_x = 4.0;
 const double goal_y = 2.0;
@@ -69,7 +66,10 @@ public:
 
     void setParams(double delta, double goal_tolerance);
 
+    void reconfig(rrt_planner::RRTParametersConfig &config);
+
     void initTree(Eigen::VectorXd& start);
+    void initPath();
 
     void initObstacles();
     void addObstacles(Eigen::Vector3d& pos, Eigen::Vector3d& size);
@@ -113,6 +113,7 @@ private:
     unsigned int max_itr{2000};
 
     bool goal_flag_{false};
+    bool init_flag_{false};
 
     std::random_device seed_gen;
     // std::mt19937 engine(seed_gen());

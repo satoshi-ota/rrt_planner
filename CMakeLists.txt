@@ -8,7 +8,13 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   visualization_msgs
   interactive_markers
+  dynamic_reconfigure
 )
+
+generate_dynamic_reconfigure_options(
+  cfg/RRTParameters.cfg
+)
+
 
 catkin_package(
     INCLUDE_DIRS include
@@ -31,5 +37,5 @@ target_link_libraries(rrt_planner ${catkin_LIBRARIES})
 add_dependencies(rrt_planner ${catkin_EXPORTED_TARGETS})
 
 add_executable(path_planning_node src/nodes/path_planning_node.cpp)
-add_dependencies(path_planning_node rrt_planner ${catkin_EXPORTED_TARGETS})
+add_dependencies(path_planning_node rrt_planner rrt_planner_gencfg ${catkin_EXPORTED_TARGETS})
 target_link_libraries(path_planning_node rrt_planner ${catkin_LIBRARIES})
