@@ -19,6 +19,7 @@ public:
     ~PathPlanningNode();
 
     void setInteractiveMarkers();
+    void initPlanner();
     void setStart();
     void setGoal();
     void run();
@@ -37,7 +38,7 @@ private:
 
     boost::shared_ptr<dynamic_reconfigure::Server<rrt_planner::RRTParametersConfig>> srv_;
 
-    RRTPlanner rrt_planner_;
+    RRTPlanner *rrt_planner_;
 
     interactive_markers::InteractiveMarkerServer *server_;
 

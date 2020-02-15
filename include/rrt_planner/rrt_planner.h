@@ -15,10 +15,15 @@
 namespace rrt_planner
 {
 
-const double goal_x = 4.0;
-const double goal_y = 2.0;
-const double goal_z = 2.0;
-const double goal_w = 1.0;
+enum ConfigDim
+{
+    DIM1 = 1,
+    DIM2 = 2,
+    DIM3 = 3,
+    DIM4 = 4,
+    DIM5 = 5,
+    DIM6 = 6,
+};
 
 enum Category
 {
@@ -29,25 +34,28 @@ enum Category
 
 struct Node
 {
-    Node()
-        :c_pos(Eigen::VectorXd::Zero(4)),
+    Node(const ConfigDim& _dim)
+        :c_state(Eigen::VectorXd::Zero((int)_dim)),
+         dim(_dim),
          cat(NONE){}
     Node(Eigen::VectorXd& _pos, Category _cat)
-        :c_pos(_pos),
+        :c_state(_pos),
          cat(_cat){}
     ~Node(){}
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    Eigen::Vector3d pos;
+    Eigen::VectorXd c_state;
 
-    Eigen::VectorXd c_pos;
+    Eigen::Vector3d uav_pos;
+    Eigen::Vector3d win_pos;
 
     int parent_node;
+    ConfigDim dim;
     Category cat;
 };
 
 struct Obstacle
 {
-    Obstacle(Eigen::Vector3d& _pos, Eigen::Vector3d& _size)
+    Obstacle(const Eigen::Vector3d& _pos, const Eigen::Vector3d& _size)
         :pos(_pos),
          size(_size){}
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -59,12 +67,12 @@ class RRTPlanner
 {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    RRTPlanner();
+    RRTPlanner(const ConfigDim& config_dim);
     ~RRTPlanner();
 
     void run();
 
-    void setParams(double delta, double goal_tolerance);
+    void setParams(double delta, double goal_tolerance, double obstacle_margin, double select_goal_rate_, double max_itr_);
 
     void reconfig(rrt_planner::RRTParametersConfig &config);
 
@@ -72,58 +80,62 @@ public:
     void initPath();
 
     void initObstacles();
-    void addObstacles(Eigen::Vector3d& pos, Eigen::Vector3d& size);
+    void addObstacles(const Eigen::Vector3d& pos, const Eigen::Vector3d& size);
     void updateObstacles(Eigen::Vector3d& pos, int index);
 
-    void setStart(double s_x, double s_y, double s_z);
-    void setGoal(double g_x, double g_y, double g_z);
+    void setStart(const Eigen::VectorXd& c_state_init);
+    void setGoal(const Eigen::VectorXd& c_state_goal);
+
+    void setCSpace(const Eigen::VectorXd& c_space_min,
+                   const Eigen::VectorXd& c_space_max);
+
+    void setConstrains(const Eigen::VectorXd& c_constrain_min,
+                       const Eigen::VectorXd& c_constrain_max);
 
     bool search();
     void pathMake();
-    bool checkGoal(Node& node);
-    bool checkConstrain(Node& node);
-    bool checkObstacle(Node& node);
+    bool checkGoal(const Node& node);
+    bool checkConstrain(const Node& node);
+    bool checkObstacle(const Node& node);
+    bool checkDim(const Eigen::VectorXd& vec);
+
+    void projection3D();
 
     void copyToMsg(nav_msgs::Path& path_msg);
     void showArrow(visualization_msgs::MarkerArray& marker_array);
 
 private:
-    Eigen::VectorXd start_;
-    Eigen::VectorXd goal_;
-
     Eigen::Vector3d start_w_{-2.0, 2.0, 4.0};
     Eigen::Vector3d goal_w_{2.0, 2.0, 4.0};
 
-    Eigen::VectorXd start_config_;
-    Eigen::VectorXd goal_config_;
+    Eigen::VectorXd c_state_init_;
+    Eigen::VectorXd c_state_goal_;
 
-    Eigen::Vector3d search_range_min_;
-    Eigen::Vector3d search_range_max_;
+    Eigen::VectorXd c_space_min_;
+    Eigen::VectorXd c_space_max_;
+
+    Eigen::VectorXd c_constrain_min_;
+    Eigen::VectorXd c_constrain_max_;
 
     std::vector<Node> nodes_;
     std::vector<Node> path_;
 
     std::vector<Obstacle> obstacles_;
 
-    double delta_{0.05};
-    double goal_th_{0.1};
-    double select_goal_th_{0.1};
+    double dt_ref_{0.05};
+    double goal_tolerance_{0.1};
+    double select_goal_rate_{0.1};
     double obstacle_margin_{1.0};
 
-    unsigned int max_itr{2000};
+    unsigned int max_itr_{2000};
 
     bool goal_flag_{false};
     bool init_flag_{false};
 
-    std::random_device seed_gen;
-    // std::mt19937 engine(seed_gen());
+    ConfigDim config_dim_;
 
-    // 一様実数分布
-    // [-1.0, 1.0)の値の範囲で、等確率に実数を生成する
-    // std::uniform_real_distribution<> dist1(-1.0, 1.0);
-    // std::uniform_real_distribution<> dist_x(-10.0, 10.0);
-    // std::uniform_real_distribution<> dist_y(-10.0, 10.0);
-    // std::uniform_real_distribution<> dist_z(-10.0, 10.0);
+    std::random_device seed_gen_;
+    std::vector<std::uniform_real_distribution<>> rands_;
 };
 
 } //namespace rrt_planner

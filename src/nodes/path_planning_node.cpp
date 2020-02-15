@@ -8,6 +8,10 @@ PathPlanningNode::PathPlanningNode
     :nh_(nh),
      private_nh_(private_nh)
 {
+    initPlanner();
+    setStart();
+    setGoal();
+
     path_pub_ = nh_.advertise<nav_msgs::Path>("rrt_path",1);
     marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("marker_array", 1);
     server_ = new interactive_markers::InteractiveMarkerServer("simple_marker");
@@ -19,7 +23,6 @@ PathPlanningNode::PathPlanningNode
     srv_->setCallback(cb);
 
     setInteractiveMarkers();
-    setStart();
 }
 
 PathPlanningNode::~PathPlanningNode(){}
@@ -77,6 +80,8 @@ void PathPlanningNode::createInteractiveMarker(const Eigen::Vector3d& init_pos,
 
     auto cb = boost::bind(&PathPlanningNode::processFeedback, this, _1);
     server_->insert(int_marker, cb);
+
+    rrt_planner_->addObstacles(init_pos, size);
 }
 
 void PathPlanningNode::setInteractiveMarkers()
@@ -93,38 +98,62 @@ void PathPlanningNode::setInteractiveMarkers()
     server_->applyChanges();
 }
 
+void PathPlanningNode::initPlanner()
+{
+    rrt_planner_ = new RRTPlanner(DIM4);
+
+    Eigen::VectorXd c_space_min;
+    c_space_min.resize(4, 1);
+    c_space_min << -10.0, -10.0, -10.0, -10.0;
+    Eigen::VectorXd c_space_max;
+    c_space_max.resize(4, 1);
+    c_space_max << 10.0, 10.0, 10.0, 10.0;
+    rrt_planner_->setCSpace(c_space_min, c_space_max);
+
+    Eigen::VectorXd c_constrain_min;
+    c_constrain_min.resize(4, 1);
+    c_constrain_min << -5.0, -3.0, 0.0, 0.0;
+    Eigen::VectorXd c_constrain_max;
+    c_constrain_max.resize(4, 1);
+    c_constrain_max << 5.0, 3.0, 5.0, 1.0;
+    rrt_planner_->setConstrains(c_constrain_min, c_constrain_max);
+}
+
 void PathPlanningNode::paramsReconfig(rrt_planner::RRTParametersConfig &config, uint32_t level)
 {
-    rrt_planner_.reconfig(config);
+    rrt_planner_->reconfig(config);
 }
 
 void PathPlanningNode::setStart()
 {
-    Eigen::VectorXd start;
-    start.resize(4, 1);
-    start << -2.0, 0.0, 0.0, 0.0;
-    rrt_planner_.initTree(start);
+    Eigen::VectorXd c_state_init;
+    c_state_init.resize(4, 1);
+    c_state_init << -2.0, 0.0, 0.0, 0.0;
+    rrt_planner_->initTree(c_state_init);
 }
 
 void PathPlanningNode::setGoal()
 {
-
+    Eigen::VectorXd c_state_goal;
+    c_state_goal.resize(4, 1);
+    c_state_goal << 4.0, 0.0, 2.0, 1.0;
+    rrt_planner_->setGoal(c_state_goal);
 }
 
 void PathPlanningNode::run()
 {
-    rrt_planner_.run();
+    rrt_planner_->run();
 
     nav_msgs::Path path_msg;
     path_msg.poses.clear();
     path_msg.header.stamp = ros::Time::now();
     path_msg.header.frame_id="/map";
-    rrt_planner_.copyToMsg(path_msg);
+    rrt_planner_->copyToMsg(path_msg);
     path_pub_.publish(path_msg);
 
     visualization_msgs::MarkerArray marker_array;
     marker_array.markers.clear();
-    rrt_planner_.showArrow(marker_array);
+    rrt_planner_->showArrow(marker_array);
     marker_pub_.publish(marker_array);
 }
 
@@ -139,7 +168,7 @@ void PathPlanningNode::processFeedback
                         feedback->pose.position.y,
                         feedback->pose.position.z);
 
-    rrt_planner_.updateObstacles(pos, index);
+    rrt_planner_->updateObstacles(pos, index);
 
     setStart();
 }

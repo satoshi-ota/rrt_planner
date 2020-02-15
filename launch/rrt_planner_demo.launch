@@ -1,8 +1,19 @@
 <launch>
-    <!-- <arg name="mav_name" default="pelican"/>
-    <arg name="world_name" default="basic"/> -->
+    <arg name="debug" default="false"/>
+    <arg name="prefix" value="" unless="$(arg debug)"/>
+    <arg name="prefix" value="gdb -ex run --args" if="$(arg debug)"/>
 
-    <node name="path_planning_node" pkg="rrt_planner" type="path_planning_node" />
-    <node name="rviz" pkg="rviz" type="rviz"/>
+    <node name="path_planning_node" pkg="rrt_planner" type="path_planning_node"
+          launch-prefix="$(arg prefix)" output="screen">
+        <!-- Set start and goal -->
+        <param name="start_x" value="3.0"/>
+        <param name="start_y" value="0.0"/>
+        <param name="start_z" value="3.0"/>
+        <param name="goal_x" value="18.0"/>
+        <param name="goal_y" value="0"/>
+        <param name="goal_z" value="0.0"/>
+    </node>
+
     <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" />
+    <node name="rviz" pkg="rviz" type="rviz"/>
 </launch>
