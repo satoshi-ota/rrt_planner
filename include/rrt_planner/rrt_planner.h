@@ -32,6 +32,13 @@ enum Category
     GOAL  = 2,
 };
 
+enum MarkerName
+{
+    MARKER_OBSTACLE  = 0,
+    MARKER_START     = 1,
+    MARKER_GOAL      = 2,
+};
+
 struct Node
 {
     Node(const ConfigDim& _dim)
@@ -48,7 +55,8 @@ struct Node
     Eigen::Vector3d uav_pos;
     Eigen::Vector3d win_pos;
 
-    int parent_node;
+    int id;
+    int parent_id;
     ConfigDim dim;
     Category cat;
 };
@@ -99,14 +107,14 @@ public:
     bool checkObstacle(const Node& node);
     bool checkDim(const Eigen::VectorXd& vec);
 
-    void projection3D();
+    void projection3D(Node& node);
 
-    void copyToMsg(nav_msgs::Path& path_msg);
+    void copyToMsg(nav_msgs::Path& path_msg, nav_msgs::Path& win_path_msg);
     void showArrow(visualization_msgs::MarkerArray& marker_array);
 
 private:
-    Eigen::Vector3d start_w_{-2.0, 2.0, 4.0};
-    Eigen::Vector3d goal_w_{2.0, 2.0, 4.0};
+    Eigen::Vector3d win_init_{-2.0, 2.0, 4.0};
+    Eigen::Vector3d win_goal_{2.0, 2.0, 4.0};
 
     Eigen::VectorXd c_state_init_;
     Eigen::VectorXd c_state_goal_;
@@ -117,7 +125,7 @@ private:
     Eigen::VectorXd c_constrain_min_;
     Eigen::VectorXd c_constrain_max_;
 
-    std::vector<Node> nodes_;
+    std::vector<Node> tree_;
     std::vector<Node> path_;
 
     std::vector<Obstacle> obstacles_;

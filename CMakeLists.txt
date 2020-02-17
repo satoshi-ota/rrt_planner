@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   interactive_markers
   dynamic_reconfigure
+  jsk_recognition_msgs
 )
 
 generate_dynamic_reconfigure_options(
@@ -19,7 +20,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
     INCLUDE_DIRS include
     LIBRARIES rrt_planner
-    CATKIN_DEPENDS roscpp nav_msgs geometry_msgs visualization_msgs interactive_markers
+    CATKIN_DEPENDS roscpp nav_msgs geometry_msgs visualization_msgs interactive_markers jsk_recognition_msgs
     DEPENDS
 )
 

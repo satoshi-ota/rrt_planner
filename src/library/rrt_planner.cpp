@@ -17,9 +17,10 @@ void RRTPlanner::initTree(Eigen::VectorXd& start)
     init_flag_ = true;
     goal_flag_ = false;
 
-    Node node(start, START);
-    nodes_.clear();
-    nodes_.push_back(node);
+    Node init_node(start, START);
+    projection3D(init_node);
+    tree_.clear();
+    tree_.push_back(init_node);
 }
 
 void RRTPlanner::initObstacles()
@@ -122,14 +123,14 @@ bool RRTPlanner::search()
     Eigen::VectorXd nearest_c_state;
     Node new_node(config_dim_);
 
-    for(int i = 0; i < nodes_.size(); i++)
+    for(int i = 0; i < tree_.size(); i++)
     {
-        Eigen::VectorXd ith_c_state = nodes_[i].c_state;
+        Eigen::VectorXd ith_c_state = tree_[i].c_state;
         double d = (c_state - ith_c_state).norm();
 
         if(d < distance){
             distance = d;
-            new_node.parent_node = i;
+            new_node.parent_id = i;
             nearest_c_state = ith_c_state;
         }
     }
@@ -137,9 +138,12 @@ bool RRTPlanner::search()
     new_node.c_state
         = nearest_c_state + (c_state - nearest_c_state).normalized() * dt_ref_;
 
+    projection3D(new_node);
+
     if(checkObstacle(new_node) && checkConstrain(new_node))
     {
-        nodes_.push_back(new_node);
+        new_node.id = tree_.size();
+        tree_.push_back(new_node);
         if(checkGoal(new_node)) return true;
     }
 
@@ -167,35 +171,33 @@ void RRTPlanner::pathMake()
 {
     initPath();
 
-    Node end = nodes_[nodes_.size()-1];
+    Node& end = tree_.back();
     path_.push_back(end);
-    int i = end.parent_node;
+    int i = end.parent_id;
 
     while(1)
     {
-        path_.push_back(nodes_[i]);
-        if(nodes_[i].cat == START) break;
-        i = nodes_[i].parent_node;
+        path_.insert(path_.begin(), tree_[i]);
+        if(tree_[i].cat == START) break;
+        i = tree_[i].parent_id;
     }
 }
 
 bool RRTPlanner::checkObstacle(const Node& node)
 {
-    Eigen::Vector3d w = start_w_ + (goal_w_ - start_w_) * node.c_state(3);
-
-    Eigen::Vector3d vec = (w - node.c_state.topLeftCorner(3, 1)).normalized();
+    Eigen::Vector3d v = (node.uav_pos - node.win_pos).normalized();
 
     for(int i = 0; i < obstacles_.size(); i++)
     {
-        Eigen::Vector3d d = obstacles_[i].pos - node.c_state.topLeftCorner(3, 1);
+        Eigen::Vector3d d = obstacles_[i].pos - node.uav_pos;
 
-        double a = vec.x()*d.x() + vec.y()*d.y() + vec.z()*d.z();
-        double b = vec.x()*vec.x() + vec.y()*vec.y() + vec.z()*vec.z();
+        double a = v.x()*d.x() + v.y()*d.y() + v.z()*d.z();
+        double b = v.x()*v.x() + v.y()*v.y() + v.z()*v.z();
         double t = a / b;
 
-        Eigen::Vector3d q = node.c_state.topLeftCorner(3, 1) + vec * t;
+        Eigen::Vector3d n = node.uav_pos + v * t;
 
-        if((q - obstacles_[i].pos).norm() < obstacle_margin_) return false;
+        if((n - obstacles_[i].pos).norm() < obstacle_margin_) return false;
     }
 
     return true;
@@ -209,15 +211,26 @@ bool RRTPlanner::checkDim(const Eigen::VectorXd& vec)
     return false;
 }
 
-void RRTPlanner::copyToMsg(nav_msgs::Path& path_msg)
+void RRTPlanner::projection3D(Node& node)
+{
+    node.uav_pos = node.c_state.topLeftCorner(3, 1);
+    node.win_pos = win_init_ + (win_goal_ - win_init_) * node.c_state(3);
+}
+
+void RRTPlanner::copyToMsg(nav_msgs::Path& uav_path_msg, nav_msgs::Path& win_path_msg)
 {
     for(int i = 0; i <path_.size(); i++)
     {
         geometry_msgs::PoseStamped pose;
-        pose.pose.position.x = path_[i].c_state(0);
-        pose.pose.position.y = path_[i].c_state(1);
-        pose.pose.position.z = path_[i].c_state(2);
-        path_msg.poses.push_back(pose);
+        pose.pose.position.x = path_[i].uav_pos.x();
+        pose.pose.position.y = path_[i].uav_pos.y();
+        pose.pose.position.z = path_[i].uav_pos.z();
+        uav_path_msg.poses.push_back(pose);
+
+        pose.pose.position.x = path_[i].win_pos.x();
+        pose.pose.position.y = path_[i].win_pos.y();
+        pose.pose.position.z = path_[i].win_pos.z();
+        win_path_msg.poses.push_back(pose);
     }
 }
 
@@ -226,13 +239,13 @@ void RRTPlanner::showArrow(visualization_msgs::MarkerArray& marker_array)
     for(int i = 0; i <path_.size(); i++)
     {
         geometry_msgs::Point linear_start;
-        linear_start.x = start_w_.x() + (goal_w_ - start_w_).x() * path_[i].c_state(3);
-        linear_start.y = start_w_.y() + (goal_w_ - start_w_).y() * path_[i].c_state(3);
-        linear_start.z = start_w_.z() + (goal_w_ - start_w_).z() * path_[i].c_state(3);
+        linear_start.x = path_[i].win_pos.x();
+        linear_start.y = path_[i].win_pos.y();
+        linear_start.z = path_[i].win_pos.z();
         geometry_msgs::Point linear_end;
-        linear_end.x = path_[i].c_state(0);
-        linear_end.y = path_[i].c_state(1);
-        linear_end.z = path_[i].c_state(2);
+        linear_end.x = path_[i].uav_pos.x();
+        linear_end.y = path_[i].uav_pos.y();
+        linear_end.z = path_[i].uav_pos.z();
         geometry_msgs::Vector3 arrow;
         arrow.x = 0.02;
         arrow.y = 0.04;
@@ -246,13 +259,13 @@ void RRTPlanner::showArrow(visualization_msgs::MarkerArray& marker_array)
         marker.id = i;
         marker.lifetime = ros::Duration(1.0);
 
-        marker.type = visualization_msgs::Marker::ARROW;
+        marker.type = visualization_msgs::Marker::LINE_STRIP;
         marker.action = visualization_msgs::Marker::ADD;
-        marker.scale=arrow;
+        marker.scale = arrow;
 
         marker.points.resize(2);
-        marker.points[0]=linear_start;
-        marker.points[1]=linear_end;
+        marker.points[0] = linear_start;
+        marker.points[1] = linear_end;
 
         marker.color.r = 0.7f;
         marker.color.g = 0.5f;
@@ -261,6 +274,42 @@ void RRTPlanner::showArrow(visualization_msgs::MarkerArray& marker_array)
 
         marker_array.markers.push_back(marker);
     }
+
+    geometry_msgs::Point linear_start;
+    linear_start.x = win_init_.x();
+    linear_start.y = win_init_.y();
+    linear_start.z = win_init_.z();
+    geometry_msgs::Point linear_end;
+    linear_end.x = win_goal_.x();
+    linear_end.y = win_goal_.y();
+    linear_end.z = win_goal_.z();
+    geometry_msgs::Vector3 arrow;
+    arrow.x = 0.02;
+    arrow.y = 0.04;
+    arrow.z = 0.01;
+
+    visualization_msgs::Marker marker;
+
+    marker.header.frame_id = "/map";
+    marker.header.stamp = ros::Time::now();
+    marker.ns = "";
+    marker.id = path_.size();
+    marker.lifetime = ros::Duration();
+
+    marker.type = visualization_msgs::Marker::LINE_STRIP;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.scale = arrow;
+
+    marker.points.resize(2);
+    marker.points[0] = linear_start;
+    marker.points[1] = linear_end;
+
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+    marker.color.a = 1.0;
+
+    marker_array.markers.push_back(marker);
 }
 
 void RRTPlanner::run()
