@@ -1,0 +1,5 @@
+<library path="lib/librrt_planner">
+    <class name="rrt_planner/path_visual" type="rrt_rviz_plugin::PathVisual" base_class_type="rviz::Display">
+        <description>display PointStamped</description>
+    </class>
+</library>
