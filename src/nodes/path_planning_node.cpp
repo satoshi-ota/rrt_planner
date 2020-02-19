@@ -145,7 +145,7 @@ void PathPlanningNode::setStart()
 {
     Eigen::VectorXd c_state_init;
     c_state_init.resize(4, 1);
-    c_state_init << -2.0, 0.0, 0.0, 0.0;
+    c_state_init << -2.0, 0.0, 2.0, 0.0;
     rrt_planner_->initTree(c_state_init);
 }
 
@@ -153,7 +153,7 @@ void PathPlanningNode::setGoal()
 {
     Eigen::VectorXd c_state_goal;
     c_state_goal.resize(4, 1);
-    c_state_goal << 4.0, 0.0, 2.0, 1.0;
+    c_state_goal << 4.0, 0.0, 3.0, 1.0;
     rrt_planner_->setGoal(c_state_goal);
 }
 
